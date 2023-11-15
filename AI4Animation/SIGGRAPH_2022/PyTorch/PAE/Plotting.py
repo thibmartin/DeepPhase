@@ -32,6 +32,31 @@ def PCA2D(ax, indices, batches, title):
     ax.set_axis_off()
     ax.set_title(title)
 
+def PCA3D(ax, indices, batches, title):
+    ax.cla()
+
+    point_alpha = 0.3
+    line_alpha = 0.2
+    arrow_alpha = 1.0
+    arrow_step = 50
+    arrow_size = 0.015
+    arrow_power = 1.0
+    arrow_color = (0.25,0.25,0.5)
+
+    x = np.vstack(batches)
+    y = PCA(n_components=3, whiten=True).fit_transform(x)
+    for i in indices:
+        _x_ = y[i]
+        px = _x_[:,0]
+        py = _x_[:,1]
+        pz = _x_[:,2]
+        if line_alpha != 0.0:
+            ax.plot(px, py, pz, c=(0,0,0), alpha=line_alpha)
+        if point_alpha != 0.0:
+            ax.scatter(px, py, pz, alpha=point_alpha)
+    ax.set_axis_off()
+    ax.set_title(title)
+
 def Distribution(ax, values, title):
     ax.cla()
     

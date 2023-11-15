@@ -13,6 +13,7 @@ from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 import torch.nn as nn
 import random
+import pandas as pd
 
 import matplotlib.pyplot as plt
 
@@ -20,23 +21,24 @@ if __name__ == '__main__':
 
     #Start Parameter Section
     window = 2.0 #time duration of the time window
-    fps = 60 #fps of the motion capture data
-    joints = 26 #joints of the character skeleton
+    fps = 30 #fps of the motion capture data
+    joints = 17 #joints of the character skeleton
 
     frames = int(window * fps) + 1
     input_channels = 3*joints #number of channels along time in the input data (here 3*J as XYZ-component of each joint)
-    phase_channels = 5 #desired number of latent phase channels (usually between 2-10)
+    phase_channels = 4 #desired number of latent phase channels (usually between 2-10)
 
     epochs = 10
     batch_size = 32
-    learning_rate = 1e-4
-    weight_decay = 1e-4
+    learning_rate = 1e-5 # originally 1e-4
+    weight_decay = 1e-5 # originally 1e-4
     restart_period = 10
     restart_mult = 2
 
     plotting_interval = 500 #update visualization at every n-th batch (visualization only)
-    pca_sequence_count = 100 #number of motion sequences visualized in the PCA (visualization only)
-    test_sequence_ratio = 0.01 #ratio of randomly selected test sequences (visualization only)
+    pca_sequence_count = 25 #number of motion sequences visualized in the PCA (visualization only)
+    test_sequence_ratio = 0.1 #ratio of randomly selected test sequences (visualization only)
+    # originally 0.01, increased because of the low probability to pick a frame with 30 frames on each side on windows of 75 frames
     #End Parameter Section
 
     def LoadBatches(sequences):
@@ -66,10 +68,21 @@ if __name__ == '__main__':
     Save = "Training"
     utility.MakeDirectory(Save)
 
-    Data = Load+"/Data.bin"
-    Shape = utility.LoadTxtAsInt(Load+"/DataShape.txt")
-    Sequences = utility.LoadSequences(Load+"/Sequences.txt", True, Shape[0])
+    # Data = Load+"/Data.bin"
+    # Shape = utility.LoadTxtAsInt(Load+"/DataShape.txt")
+    # Sequences = utility.LoadSequences(Load+"/Sequences.txt", True, Shape[0])
 
+    # With our data, the loading becomes:
+    Data=pd.read_csv(r'C:\Users\thiba\Desktop\Semester_project\pose_3d_processed\velocity_body_with_labels.csv', header=[0,1,2])
+    # Filter for the label that we want
+    labels_list=['A video where we see someone Inspecting food ingredients', 'A video where we see someone Reading the recipe', 'A video where we see someone Cutting food', 'A video where we see someone Frying with pan', 'A video where we see someone Cleaning the dishes', 'A video where we see someone Playing chess', 'A video where we see someone On computer']#List of labels
+    labels_int=0 # Change the value between 0 and 6 to train on specific actions
+    Data=Data[Data.loc[:,("OH0037", "labels", "label")]==labels_list[labels_int]]
+    print("Training on label: " + labels_list[labels_int])
+    Sequences=Data["OH0037", "sequences", "seq"].to_numpy(np.intc) #The sequence number is stored in the corresponding column
+    Data=Data.drop(columns=[("OH0037", "sequences", "seq"),('OH0037', 'labels', 'label')]).to_numpy(np.float32) # Remove the column sequence and label
+    Shape=Data.shape
+    
     # Sequences = utility.LoadSequences(Path+"/Sequences.txt", True, 100000)
     # Sequences = Sequences[np.where(Sequences == 1)]
 
@@ -79,7 +92,7 @@ if __name__ == '__main__':
     gather_window = np.arange(frames) - gather_padding
 
     #Pre-load Data Matrix
-    Data = utility.ReadBinary(Data, sample_count, feature_dim)
+    # Data = utility.ReadBinary(Data, sample_count, feature_dim)
 
     #Start Generate Data Sequences
     print("Generating Data Sequences")
@@ -92,6 +105,7 @@ if __name__ == '__main__':
         for j in range(indices.shape[0]):
             slice = [indices[j], indices[0], indices[-1]]
             data_sequences.append(slice)
+            #Here they select some frames at random (1%), and verify that they have at least the number of frames to fit in the window before/after
             if np.random.uniform(0, 1) < test_sequence_ratio and indices[j] >= (indices[0]+gather_padding) and indices[j] <= (indices[-1]-gather_padding):
                 test_sequences.append(j)
 
@@ -115,6 +129,7 @@ if __name__ == '__main__':
     _, ax2 = plt.subplots(phase_channels,5)
     _, ax3 = plt.subplots(1,2)
     _, ax4 = plt.subplots(2,1)
+    # _, ax5 = plt.subplots(1,1) #3D PCA plot
     dist_amps = []
     dist_freqs = []
     loss_history = utility.PlottingWindow("Loss History", ax=ax4, min=0, drawInterval=plotting_interval)
@@ -214,8 +229,9 @@ if __name__ == '__main__':
                     pca_batches.append(manifold)
                     pivot += len(indices)
 
-                plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences)")
-
+                plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences), from label: "+str(labels_list[labels_int]))
+                # plot.PCA3D(ax5[0], pca_indices, pca_batches, "3D Phase Manifold (" + str(pca_sequence_count) + " Random Sequences)")
+                
                 plt.gcf().canvas.draw_idle()
             plt.gcf().canvas.start_event_loop(1e-5)
             #End Visualization Section
