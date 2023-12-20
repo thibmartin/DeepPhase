@@ -76,8 +76,9 @@ if __name__ == '__main__':
     Data=pd.read_csv(r'C:\Users\thiba\Desktop\Semester_project\pose_3d_processed\velocity_body_with_labels.csv', header=[0,1,2])
     # Filter for the label that we want
     labels_list=['A video where we see someone Inspecting food ingredients', 'A video where we see someone Reading the recipe', 'A video where we see someone Cutting food', 'A video where we see someone Frying with pan', 'A video where we see someone Cleaning the dishes', 'A video where we see someone Playing chess', 'A video where we see someone On computer']#List of labels
-    labels_int=0 # Change the value between 0 and 6 to train on specific actions
-    Data=Data[Data.loc[:,("OH0037", "labels", "label")]==labels_list[labels_int]]
+    labels_int=7 # Change the value between 0 and 6 to train on specific actions, set to -1 for all data
+    if labels_int != -1:
+        Data=Data[Data.loc[:,("OH0037", "labels", "label")]==labels_list[labels_int]]
     print("Training on label: " + labels_list[labels_int])
     Sequences=Data["OH0037", "sequences", "seq"].to_numpy(np.intc) #The sequence number is stored in the corresponding column
     Data=Data.drop(columns=[("OH0037", "sequences", "seq"),('OH0037', 'labels', 'label')]).to_numpy(np.float32) # Remove the column sequence and label
@@ -229,7 +230,7 @@ if __name__ == '__main__':
                     pca_batches.append(manifold)
                     pivot += len(indices)
 
-                plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences), from label: "+str(labels_list[labels_int]))
+                plot.PCA2D(ax4[0], pca_indices, pca_batches, "Phase Manifold (" + str(pca_sequence_count) + " Random Sequences),\n from label: "+str(labels_list[labels_int]))
                 # plot.PCA3D(ax5[0], pca_indices, pca_batches, "3D Phase Manifold (" + str(pca_sequence_count) + " Random Sequences)")
                 
                 plt.gcf().canvas.draw_idle()
